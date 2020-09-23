@@ -177,7 +177,8 @@ NOTES:
  *   Max ops: 8
  *   Rating: 1
  */
-int bitAnd(int x, int y) { 
+int bitAnd(int x, int y) {
+  //invert bits of x and y and then use OR to get the inverted result and then invert again to get the final result 
   return ~(~x | ~y);
 }
 /*
@@ -188,7 +189,8 @@ int bitAnd(int x, int y) {
  *   Rating: 1
  */
 int isTmin(int x) {
-  return 2;
+  //check if x and negation are equal and check that x is not zero
+  return !((x ^ (~x + 1)) + !x);
 }
 /* 
  * getByte - Extract byte n from word x
@@ -199,7 +201,8 @@ int isTmin(int x) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-  return (x >> (n << 3)) & 0xff;
+  //use shifts to mimic multiplication and division and then use and 0xFF to get the byte (8 bit) representation
+  return (x >> (n << 3)) & 0xFF;
 }
 /* 
  * floatAbsVal - Return bit-level equivalent of absolute value of f for
@@ -213,7 +216,13 @@ int getByte(int x, int n) {
  *   Rating: 2
  */
 unsigned floatAbsVal(unsigned uf) {
-  return 2;
+  //set sign bit to 0 and return argument if it is NaN
+  unsigned x = uf & 0x7FFFFFFF;
+  if(x > 0x7F800001) {
+    return uf;
+  } else {
+    return x;
+  }
 }
 /* 
  * allEvenBitsSet - return 1 if all even-numbered bits in word set to 1
@@ -224,7 +233,13 @@ unsigned floatAbsVal(unsigned uf) {
  *   Rating: 2
  */
 int allEvenBitsSet(int x) {
-  return 2;
+  //all_odd_bits has all odd bits set to 1 and all_bits has all 0s if x had an even bit at 1
+  int all_bits;
+  int all_odd_bits = (0xaa << 8) | 0xaa;
+  all_odd_bits = all_odd_bits | (all_odd_bits << 16);
+  all_bits = all_odd_bits | x;
+  all_bits = ~all_bits;
+  return !all_bits;
 }
 /* 
  * conditional - same as x ? y : z 
@@ -234,6 +249,7 @@ int allEvenBitsSet(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
+  //convert x to 0 or 1 then negate in two's complement, then and with the inverse and use or to get the originial value
   return z ^ ((y ^ z) & ((!x) + ~0));;
 }
 /* 
@@ -245,7 +261,9 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int addOK(int x, int y) {
-  return 2;
+  //compare sum to x and y then right shift 31 to determine whether x+y creates overflow based on if 0 or 1 is returned
+  int sum = x + y;
+  return !(((sum ^ x) & (sum ^ y)) >> 31);
 }
 /* 
  * floatIsLess - Compute f < g for floating point arguments f and g.
@@ -259,7 +277,19 @@ int addOK(int x, int y) {
  *   Rating: 3
  */
 int floatIsLess(unsigned uf, unsigned ug) {
-    return 2;
+  //if uf or ug is NaN return 0, perform right shift to find sign of each argument and then return 1 
+  //if  both are neg AND uf < ug OR both are pos AND uf > ug OR uf is neg and ug is pos
+  int uf_sign; 
+  int ug_sign;
+  if ((uf & 0x7FFFFFFF) > 0x7F800000 || (ug & 0x7FFFFFFF) > 0x7F800000 || !((uf | ug) << 1)) {
+    return 0;
+  }
+  uf_sign = uf >> 31;
+  ug_sign = ug >> 31;
+  if ((ug_sign == uf_sign && (ug_sign && ug < uf)) || (!ug_sign && uf < ug) || uf_sign > ug_sign) {
+    return 1;
+  }
+  return 0;
 }
 /*
  * isPower2 - returns 1 if x is a power of 2, and 0 otherwise
@@ -270,7 +300,12 @@ int floatIsLess(unsigned uf, unsigned ug) {
  *   Rating: 4
  */
 int isPower2(int x) {
-  return 2;
+  //if x is zero then all 0s otherwise all 1s is x is anything other than zero
+  int check_zero = (!x << 31) >> 31;
+  //if x has only one bit set then all 0s otherwise all 1s
+  int only_one_bit_set = (~(x & (~x + 1)) | (0x01 << 31)) & x;
+  //return 1 is all 0s otherwise 0 and mask out to zero if x is zero
+  return (!only_one_bit_set) & (~check_zero);
 }
 /*
  * isPalindrome - Return 1 if bit pattern in x is equal to its mirror image
@@ -280,5 +315,16 @@ int isPower2(int x) {
  *   Rating: 4
  */
 int isPalindrome(int x) {
-    return 2;
+  //convert x to bit pattern and then reverse the bits in x and store it in backwards
+  int hex0000FFFF = (0xff << 8) | 0xff;
+  int hex00FF00FF = hex0000FFFF ^ (hex0000FFFF << 8);
+  int hex0F0F0F0F = hex00FF00FF ^ (hex00FF00FF << 4);
+  int hex33333333 = hex0F0F0F0F ^ (hex0F0F0F0F << 2);
+  int hex55555555 = hex33333333 ^ (hex33333333 << 1);
+  int backwards = x << 16 | ((x >> 16) & hex0000FFFF);
+  backwards = (backwards & hex00FF00FF) << 8 | ((backwards >> 8) & hex00FF00FF);
+  backwards = (backwards & hex0F0F0F0F) << 4 | ((backwards >> 4) & hex0F0F0F0F);
+  backwards = (backwards & hex33333333) << 2 | ((backwards >> 2) & hex33333333);
+  backwards = (backwards & hex55555555) << 1 | ((backwards >> 1) & hex55555555);
+  return !(x ^ backwards);
 }
